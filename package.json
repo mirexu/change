@@ -2,6 +2,10 @@
   "name": "change",
   "version": "0.1.0",
   "description": "多媒体格式转换工具 (格式工厂替代品)",
+  "author": {
+    "name": "mirexu",
+    "email": "milk_snowlk@noreply.gitcode.com"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
