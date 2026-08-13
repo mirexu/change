@@ -2,7 +2,21 @@
 
 多媒体格式转换工具,旨在替代格式工厂。基于 FFmpeg,支持音视频、图片的格式互转、批量队列与进度显示。
 
+[![GitHub Release](https://img.shields.io/github/v/release/mirexu/change)](https://github.com/mirexu/change/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/mirexu/change/total)](https://github.com/mirexu/change/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > 本项目由 **DeepSeek** 构建。
+
+## 📦 下载安装包
+
+👉 [点此下载最新版本](https://github.com/mirexu/change/releases/latest)
+
+支持 Windows、macOS、Linux 三平台。
+
+## 📸 截图 / 演示
+
+![Change 主界面](./screenshots/main.png)
 
 ## 技术栈
 
