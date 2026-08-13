@@ -6,3 +6,13 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# 图标生成器的其他输出(桌面版只用到 icon.ico 和 icon.png)
+build/android/
+build/ios/
+build/web/
+build/original/
+
+# 冗余的本地源文件
+example/
+icon-1024.ico

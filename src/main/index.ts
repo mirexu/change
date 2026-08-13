@@ -1,11 +1,33 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 import * as engine from '@main/ffmpeg'
 import { ffmpegBin } from '@main/ffmpeg'
 import type { ConvertOptions, TaskProgressEvent, ConvertTask } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
+
+function configPath(): string {
+  return join(app.getPath('userData'), 'config.json')
+}
+
+function readConfig(): Record<string, unknown> {
+  try {
+    return JSON.parse(readFileSync(configPath(), 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+function writeConfig(patch: Record<string, unknown>): void {
+  const cfg = { ...readConfig(), ...patch }
+  try {
+    writeFileSync(configPath(), JSON.stringify(cfg, null, 2), 'utf8')
+  } catch {
+    /* ignore */
+  }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -68,7 +90,16 @@ function registerIpc(): void {
   ipcMain.handle('listTasks', () => engine.listTasks())
   ipcMain.handle('cancelTask', (_e, id: string) => engine.cancelTask(id))
   ipcMain.handle('clearFinished', () => engine.clearFinished())
+  ipcMain.handle('listEncoders', () => engine.listHardwareEncoders())
   ipcMain.on('openInFolder', (_e, path: string) => shell.showItemInFolder(path))
+  ipcMain.on('openExternal', (_e, url: string) => shell.openExternal(url))
+  ipcMain.on('quitApp', () => app.quit())
+
+  ipcMain.handle('getLocale', () => (readConfig().locale as string) || 'zh')
+  ipcMain.handle('setLocale', (_e, locale: string) => {
+    writeConfig({ locale })
+    return true
+  })
 
   ipcMain.handle('ffmpegVersion', () => {
     return new Promise<string>((resolvePromise) => {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { dirname, join, parse } from 'node:path'
 import { app } from 'electron'
 import ffmpegStatic from 'ffmpeg-static'
@@ -22,6 +22,20 @@ const ffmpegBin = resolveFfmpegPath()
 export { ffmpegBin }
 
 ffmpeg.setFfmpegPath(ffmpegBin)
+
+/** 探测可用的硬件编码器(nvenc / amf / qsv) */
+export function listHardwareEncoders(): Promise<string[]> {
+  return new Promise((resolve) => {
+    execFile(ffmpegBin, ['-hide_banner', '-encoders'], { timeout: 15000 }, (_err, stdout) => {
+      const out = stdout || ''
+      const names = new Set<string>()
+      const re = /\b(h264_nvenc|hevc_nvenc|av1_nvenc|h264_amf|hevc_amf|av1_amf|h264_qsv|hevc_qsv|av1_qsv)\b/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(out)) !== null) names.add(m[1])
+      resolve([...names])
+    })
+  })
+}
 
 export interface EngineHandlers {
   onProgress: (e: TaskProgressEvent) => void
@@ -47,11 +61,20 @@ const MAX_AUDIO_BITRATE: Record<string, number> = {
   m4a: 512,
   ogg: 500,
   opus: 510,
-  ac3: 640
+  ac3: 640,
+  eac3: 640,
+  mp2: 384,
+  wma: 320,
+  dts: 1536,
+  amr: 12,
+  spx: 44
 }
 
 /** 无损格式,码率概念不适用,不自动设码率 */
-const LOSSLESS_AUDIO = new Set(['flac', 'wav', 'pcm_s16le', 'alac', 'ape'])
+const LOSSLESS_AUDIO = new Set(['flac', 'wav', 'pcm_s16le', 'alac', 'ape', 'aiff', 'au', 'caf'])
+
+/** 固定/受限码率格式,由编码器自行决定,不自动设码率 */
+const NO_AUTO_BITRATE = new Set(['dts', 'amr', 'spx'])
 
 /** 解析 ffmpeg -i 输出的源音频流码率 (kbps),失败返回 null */
 function probeAudioBitrate(inputPath: string): Promise<number | null> {
@@ -65,11 +88,21 @@ function probeAudioBitrate(inputPath: string): Promise<number | null> {
   })
 }
 
+/** 解析 ffmpeg -i 输出的时长 (秒),失败返回 null */
+function probeDuration(inputPath: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    execFile(ffmpegBin, ['-hide_banner', '-i', inputPath], (_err, _stdout, stderr) => {
+      const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
+      resolve(m ? toSeconds(m[1], m[2], m[3]) : null)
+    })
+  })
+}
+
 /** 计算目标音频码率:用户显式指定则优先;否则保留源码率并封顶到格式上限 */
 async function resolveAudioBitrate(inputPath: string, options: ConvertOptions): Promise<string | undefined> {
   if (options.audioBitrate) return options.audioBitrate
   const codec = options.audioCodec || ''
-  if (codec === 'copy' || LOSSLESS_AUDIO.has(codec) || LOSSLESS_AUDIO.has(options.outputFormat)) {
+  if (codec === 'copy' || LOSSLESS_AUDIO.has(codec) || LOSSLESS_AUDIO.has(options.outputFormat) || NO_AUTO_BITRATE.has(options.outputFormat)) {
     return undefined
   }
   const sourceBitrate = await probeAudioBitrate(inputPath)
@@ -90,6 +123,12 @@ export function listTasks(): ConvertTask[] {
 export function addTask(inputPath: string, options: ConvertOptions): ConvertTask {
   const id = randomUUID()
   const output = buildOutputPath(inputPath, options)
+  let inputSize: number | undefined
+  try {
+    inputSize = statSync(inputPath).size
+  } catch {
+    inputSize = undefined
+  }
   const task: ConvertTask = {
     id,
     inputPath,
@@ -97,6 +136,7 @@ export function addTask(inputPath: string, options: ConvertOptions): ConvertTask
     status: 'queued',
     progress: 0,
     detail: '排队中',
+    inputSize,
     createdAt: Date.now()
   }
   tasks.set(id, task)
@@ -157,6 +197,15 @@ async function runTask(id: string, task: ConvertTask): Promise<void> {
   const opts = taskOptions.get(id) || { outputFormat: '' }
   try {
     const effective = { ...opts }
+    if (opts.targetSize) {
+      const duration = await probeDuration(task.inputPath)
+      if (duration && duration > 0) {
+        const targetBits = opts.targetSize * 8
+        const audioBitrateBps = 128000
+        const videoBitrateBps = Math.max(50000, targetBits / duration - audioBitrateBps)
+        effective.videoBitrate = `${Math.round(videoBitrateBps / 1000)}k`
+      }
+    }
     if (!opts.audioCodec || opts.audioCodec !== 'copy') {
       effective.audioBitrate = await resolveAudioBitrate(task.inputPath, opts)
     }
@@ -166,6 +215,11 @@ async function runTask(id: string, task: ConvertTask): Promise<void> {
     task.progress = 100
     task.detail = '完成'
     task.finishedAt = Date.now()
+    try {
+      task.outputSize = statSync(task.outputPath).size
+    } catch {
+      task.outputSize = undefined
+    }
     handlers?.onTaskDone(task)
   } catch (err) {
     const job = jobs.get(id)
@@ -189,8 +243,20 @@ async function runTask(id: string, task: ConvertTask): Promise<void> {
 function executeConversion(task: ConvertTask, options: ConvertOptions): Promise<void> {
   return new Promise((resolvePromise, rejectPromise) => {
     let command: ffmpeg.FfmpegCommand
+    const isMerge = !!(options.mergeInputs && options.mergeInputs.length > 0)
     try {
-      command = ffmpeg(task.inputPath).output(task.outputPath)
+      if (isMerge) {
+        command = ffmpeg()
+        command.input(task.inputPath)
+        for (const p of options.mergeInputs!) command.input(p)
+        const total = options.mergeInputs!.length + 1
+        const parts: string[] = []
+        for (let i = 0; i < total; i++) parts.push(`[${i}:v:0][${i}:a:0]`)
+        command.complexFilter(`${parts.join('')}concat=n=${total}:v=1:a=1[v][a]`)
+        command.output(task.outputPath)
+      } else {
+        command = ffmpeg(task.inputPath).output(task.outputPath)
+      }
     } catch (err) {
       rejectPromise(err)
       return
@@ -210,8 +276,8 @@ function executeConversion(task: ConvertTask, options: ConvertOptions): Promise<
     const stderrLines: string[] = []
     command.on('stderr', (line) => {
       const durationMatch = line.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
-      if (durationMatch && !totalDuration) {
-        totalDuration = toSeconds(durationMatch[1], durationMatch[2], durationMatch[3])
+      if (durationMatch) {
+        totalDuration += toSeconds(durationMatch[1], durationMatch[2], durationMatch[3])
       }
       const timeMatch = line.match(/time=(\d+):(\d+):(\d+\.\d+)/)
       if (timeMatch && totalDuration > 0) {
@@ -219,7 +285,7 @@ function executeConversion(task: ConvertTask, options: ConvertOptions): Promise<
         const progress = Math.min(99, Math.round((t / totalDuration) * 100))
         if (progress !== task.progress) {
           task.progress = progress
-          task.detail = '转换中'
+          task.detail = options.frameTime !== undefined ? '截帧中' : '转换中'
           handlers?.onProgress({ id: task.id, progress, detail: task.detail })
         }
       }
@@ -227,20 +293,41 @@ function executeConversion(task: ConvertTask, options: ConvertOptions): Promise<
     })
 
     if (options.videoCodec) command.videoCodec(options.videoCodec)
+    if (options.videoCodec && /nvenc|amf|qsv/.test(options.videoCodec)) {
+      command.outputOptions('-pix_fmt', 'yuv420p')
+    }
     if (options.audioCodec) command.audioCodec(options.audioCodec)
     if (options.audioCodec === 'flac') {
       command.outputOptions('-sample_fmt', 's16')
     }
-    if (options.videoBitrate) command.videoBitrate(options.videoBitrate)
-    if (options.audioBitrate) command.audioBitrate(options.audioBitrate)
-    if (options.fps) command.fps(options.fps)
-    if (options.resolution) command.size(options.resolution)
-    if (options.startTime !== undefined) command.setStartTime(options.startTime)
-    if (options.endTime !== undefined) {
-      if (options.startTime !== undefined) {
-        command.duration(options.endTime - options.startTime)
-      } else {
-        command.duration(options.endTime)
+    if (options.audioCodec === 'dca') {
+      command.outputOptions('-strict', '-2')
+    }
+    if (options.audioCodec === 'libopencore_amrnb') {
+      command.audioChannels(1)
+      command.audioFrequency(8000)
+    }
+
+    if (options.frameTime !== undefined) {
+      command.seekInput(options.frameTime)
+      command.outputOptions('-frames:v', '1')
+      command.noAudio()
+    } else {
+      if (options.videoBitrate) command.videoBitrate(options.videoBitrate)
+      if (options.audioBitrate) command.audioBitrate(options.audioBitrate)
+      if (options.fps) command.fps(options.fps)
+      if (options.outputFormat === 'ico') {
+        command.outputOptions('-vf', 'scale=256:256:force_original_aspect_ratio=decrease')
+      } else if (options.resolution) {
+        command.size(options.resolution)
+      }
+      if (options.startTime !== undefined) command.setStartTime(options.startTime)
+      if (options.endTime !== undefined) {
+        if (options.startTime !== undefined) {
+          command.duration(options.endTime - options.startTime)
+        } else {
+          command.duration(options.endTime)
+        }
       }
     }
 

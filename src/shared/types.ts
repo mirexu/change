@@ -21,6 +21,12 @@ export interface ConvertOptions {
   endTime?: number
   /** 输出目录,缺省为源文件目录 */
   outputDir?: string
+  /** 合并模式:与首个输入合并的其它文件路径 */
+  mergeInputs?: string[]
+  /** 目标输出大小(字节),自动计算视频码率 */
+  targetSize?: number
+  /** 截帧时间(秒),提取该时刻画面 */
+  frameTime?: number
 }
 
 export interface ConvertTask {
@@ -33,6 +39,10 @@ export interface ConvertTask {
   /** 当前操作说明,如 "转码中" */
   detail: string
   error?: string
+  /** 输入文件大小(字节) */
+  inputSize?: number
+  /** 输出文件大小(字节) */
+  outputSize?: number
   createdAt: number
   finishedAt?: number
 }
@@ -41,6 +51,15 @@ export interface TaskProgressEvent {
   id: string
   progress: number
   detail: string
+}
+
+export interface Preset {
+  id: string
+  name: string
+  description?: string
+  options: ConvertOptions
+  /** 卡片展示信息 */
+  tile?: { title: string; sub: string; icon: string }
 }
 
 export interface Api {
@@ -60,6 +79,18 @@ export interface Api {
   openInFolder(path: string): void
   /** 获取 ffmpeg 版本(验证引擎可用) */
   ffmpegVersion(): Promise<string>
+  /** 列出可用的硬件编码器(nvenc/amf/qsv) */
+  listEncoders(): Promise<string[]>
+  /** 获取拖拽文件的真实路径 */
+  getPathForFile(file: unknown): string
+  /** 用系统浏览器打开链接 */
+  openExternal(url: string): void
+  /** 退出应用 */
+  quitApp(): void
+  /** 读取语言设置 */
+  getLocale(): Promise<string>
+  /** 保存语言设置 */
+  setLocale(locale: string): Promise<boolean>
   onProgress(cb: (e: TaskProgressEvent) => void): () => void
   onTaskDone(cb: (t: ConvertTask) => void): () => void
 }
