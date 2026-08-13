@@ -1,0 +1,77 @@
+{
+  "name": "change",
+  "version": "0.1.0",
+  "description": "多媒体格式转换工具 (格式工厂替代品)",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "dist": "electron-vite build && electron-builder"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "element-plus": "^2.9.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.1.10"
+  },
+  "build": {
+    "appId": "com.change.mediaconvert",
+    "productName": "Change",
+    "directories": {
+      "output": "output"
+    },
+    "files": [
+      "out/**",
+      "!**/node_modules/ffmpeg-static/ffmpeg*"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false,
+      "extraResources": [
+        {
+          "from": "node_modules/ffmpeg-static/ffmpeg.exe",
+          "to": "ffmpeg/ffmpeg.exe"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "extraResources": [
+        {
+          "from": "node_modules/ffmpeg-static/ffmpeg",
+          "to": "ffmpeg/ffmpeg"
+        }
+      ]
+    },
+    "mac": {
+      "target": "dmg",
+      "identity": null,
+      "extraResources": [
+        {
+          "from": "node_modules/ffmpeg-static/ffmpeg",
+          "to": "ffmpeg/ffmpeg"
+        }
+      ]
+    }
+  }
+}
