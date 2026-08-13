@@ -1,5 +1,7 @@
 # Change
 
+[English](./README_EN.md) | [中文](./README.md)
+
 多媒体格式转换工具,旨在替代格式工厂。基于 FFmpeg,支持音视频、图片的格式互转、批量队列与进度显示。
 
 [![GitHub Release](https://img.shields.io/github/v/release/mirexu/change)](https://github.com/mirexu/change/releases/latest)
@@ -7,6 +9,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 本项目由 **DeepSeek** 构建。
+
+## 为什么选择 Change
+
+简单来说,这款软件做到了:
+
+- 🎯 **开箱即用**:安装包内置 FFmpeg,无需任何额外配置。
+- 🚀 **省心省力**:智能码率、批量任务队列,让转换变得更轻松。
+- 🧹 **干净纯粹**:无广告、无捆绑,只做转换这一件事。
 
 ## 📦 下载安装包
 
@@ -96,6 +106,11 @@ src/
 - 解压后重命名为 `ffmpeg.exe`,放到 `node_modules/ffmpeg-static/ffmpeg.exe`
 
 Electron 运行时同理,可从 `https://npmmirror.com/mirrors/electron/` 手动下载对应版本。
+
+## 社区
+
+- 🐛 提交 Bug 或建议新功能:[Issues](https://github.com/mirexu/change/issues)
+- 💬 交流讨论:[Discussions](https://github.com/mirexu/change/discussions)
 
 ## License
 
