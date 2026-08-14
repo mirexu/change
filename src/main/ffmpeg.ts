@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, parse } from 'node:path'
 import { app } from 'electron'
 import ffmpegStatic from 'ffmpeg-static'
 import ffmpeg from 'fluent-ffmpeg'
-import type { ConvertOptions, ConvertTask, TaskProgressEvent } from '@shared/types'
+import type { ConvertOptions, ConvertTask, MediaInfo, TaskProgressEvent } from '@shared/types'
 
 /** 打包后 ffmpeg 位于 resources/ffmpeg/,开发时回退到 ffmpeg-static */
 function resolveFfmpegPath(): string {
@@ -98,6 +98,41 @@ function probeDuration(inputPath: string): Promise<number | null> {
   })
 }
 
+/** 探测媒体文件信息(时长/分辨率/编码器等) */
+export function probeMediaInfo(inputPath: string): Promise<MediaInfo> {
+  return new Promise((resolve) => {
+    execFile(ffmpegBin, ['-hide_banner', '-i', inputPath], (_err, _stdout, stderr) => {
+      const info: MediaInfo = {}
+      const dur = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
+      if (dur) info.duration = toSeconds(dur[1], dur[2], dur[3])
+      const vLine = stderr.split('\n').find((l) => l.includes('Video:'))
+      if (vLine) {
+        const codec = vLine.match(/Video:\s*([^,\s]+)/)
+        if (codec) info.videoCodec = codec[1]
+        const res = vLine.match(/(\d{2,5})x(\d{2,5})/)
+        if (res) {
+          info.width = parseInt(res[1], 10)
+          info.height = parseInt(res[2], 10)
+        }
+        const fps = vLine.match(/([\d.]+)\s*fps/)
+        if (fps) info.fps = parseFloat(fps[1])
+      }
+      const aLine = stderr.split('\n').find((l) => l.includes('Audio:'))
+      if (aLine) {
+        const codec = aLine.match(/Audio:\s*([^,\s]+)/)
+        if (codec) info.audioCodec = codec[1]
+        const sr = aLine.match(/(\d+)\s*Hz/)
+        if (sr) info.audioSampleRate = parseInt(sr[1], 10)
+        const ch = aLine.match(/(stereo|mono)/)
+        if (ch) info.audioChannels = ch[1] === 'stereo' ? 2 : 1
+        const br = aLine.match(/(\d+)\s*kb\/s/)
+        if (br) info.audioBitrate = parseInt(br[1], 10)
+      }
+      resolve(info)
+    })
+  })
+}
+
 /** 计算目标音频码率:用户显式指定则优先;否则保留源码率并封顶到格式上限 */
 async function resolveAudioBitrate(inputPath: string, options: ConvertOptions): Promise<string | undefined> {
   if (options.audioBitrate) return options.audioBitrate
@@ -142,6 +177,7 @@ export function addTask(inputPath: string, options: ConvertOptions): ConvertTask
   tasks.set(id, task)
   taskOptions.set(id, options)
   queue.push(id)
+  persistTasks()
   pump()
   return task
 }
@@ -161,6 +197,7 @@ export function cancelTask(id: string): boolean {
       task.status = 'cancelled'
       task.detail = '已取消'
       task.finishedAt = Date.now()
+      persistTasks()
       handlers?.onTaskDone(task)
     }
     return true
@@ -172,8 +209,65 @@ export function clearFinished(): void {
   for (const [id, t] of tasks) {
     if (t.status === 'done' || t.status === 'error' || t.status === 'cancelled') {
       tasks.delete(id)
+      taskOptions.delete(id)
     }
   }
+  persistTasks()
+}
+
+function tasksFilePath(): string {
+  return join(app.getPath('userData'), 'tasks.json')
+}
+
+function persistTasks(): void {
+  try {
+    const data = { tasks: listTasks(), options: Object.fromEntries(taskOptions) }
+    writeFileSync(tasksFilePath(), JSON.stringify(data, null, 2), 'utf8')
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 启动时恢复任务历史;未完成的任务标记为已中断 */
+export function loadTasks(): void {
+  try {
+    const raw = readFileSync(tasksFilePath(), 'utf8')
+    const data = JSON.parse(raw)
+    if (Array.isArray(data.tasks)) {
+      for (const t of data.tasks as ConvertTask[]) {
+        if (t.status === 'queued' || t.status === 'running') {
+          t.status = 'cancelled'
+          t.detail = '已中断'
+        }
+        tasks.set(t.id, t)
+      }
+    }
+    if (data.options && typeof data.options === 'object') {
+      for (const [id, o] of Object.entries(data.options)) {
+        if (tasks.has(id)) taskOptions.set(id, o as ConvertOptions)
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 重试失败/已取消的任务 */
+export function retryTask(id: string): boolean {
+  const task = tasks.get(id)
+  if (!task || task.status === 'running' || task.status === 'queued') return false
+  const opts = taskOptions.get(id)
+  if (!opts) return false
+  task.status = 'queued'
+  task.progress = 0
+  task.detail = '排队中'
+  task.error = undefined
+  task.outputSize = undefined
+  task.finishedAt = undefined
+  queue.push(id)
+  persistTasks()
+  pump()
+  return true
 }
 
 function buildOutputPath(inputPath: string, options: ConvertOptions): string {
@@ -220,6 +314,7 @@ async function runTask(id: string, task: ConvertTask): Promise<void> {
     } catch {
       task.outputSize = undefined
     }
+    persistTasks()
     handlers?.onTaskDone(task)
   } catch (err) {
     const job = jobs.get(id)
@@ -232,6 +327,7 @@ async function runTask(id: string, task: ConvertTask): Promise<void> {
       task.error = err instanceof Error ? err.message : String(err)
     }
     task.finishedAt = Date.now()
+    persistTasks()
     handlers?.onTaskDone(task)
   } finally {
     jobs.delete(id)

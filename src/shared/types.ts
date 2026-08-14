@@ -53,6 +53,28 @@ export interface TaskProgressEvent {
   detail: string
 }
 
+/** 媒体文件信息 */
+export interface MediaInfo {
+  duration?: number
+  width?: number
+  height?: number
+  fps?: number
+  videoCodec?: string
+  audioCodec?: string
+  audioSampleRate?: number
+  audioChannels?: number
+  audioBitrate?: number
+}
+
+/** 音频标签 */
+export interface AudioTags {
+  title?: string
+  artist?: string
+  album?: string
+  date?: string
+  comment?: string
+}
+
 export interface Preset {
   id: string
   name: string
@@ -91,6 +113,14 @@ export interface Api {
   getLocale(): Promise<string>
   /** 保存语言设置 */
   setLocale(locale: string): Promise<boolean>
+  /** 探测媒体文件信息 */
+  probeMediaInfo(inputPath: string): Promise<MediaInfo>
+  /** 重试失败/已取消的任务 */
+  retryTask(id: string): Promise<boolean>
+  /** 读取音频标签 */
+  readAudioTags(inputPath: string): Promise<AudioTags>
+  /** 写入音频标签(含可选封面) */
+  writeAudioTags(inputPath: string, tags: AudioTags, coverPath?: string): Promise<boolean>
   onProgress(cb: (e: TaskProgressEvent) => void): () => void
   onTaskDone(cb: (t: ConvertTask) => void): () => void
 }

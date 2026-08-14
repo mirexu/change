@@ -17,6 +17,11 @@ const api: Api = {
   quitApp: () => ipcRenderer.send('quitApp'),
   getLocale: () => ipcRenderer.invoke('getLocale'),
   setLocale: (locale: string) => ipcRenderer.invoke('setLocale', locale),
+  probeMediaInfo: (inputPath: string) => ipcRenderer.invoke('probeMediaInfo', inputPath),
+  retryTask: (id: string) => ipcRenderer.invoke('retryTask', id),
+  readAudioTags: (inputPath: string) => ipcRenderer.invoke('readAudioTags', inputPath),
+  writeAudioTags: (inputPath: string, tags: import('@shared/types').AudioTags, coverPath?: string) =>
+    ipcRenderer.invoke('writeAudioTags', inputPath, tags, coverPath),
   onProgress: (cb: (e: TaskProgressEvent) => void) => {
     const listener = (_e: unknown, payload: TaskProgressEvent): void => cb(payload)
     ipcRenderer.on('task:progress', listener)

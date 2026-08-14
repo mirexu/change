@@ -29,6 +29,7 @@ const zh = {
   'mode.convert': '格式转换',
   'mode.merge': '视频合并',
   'mode.frame': '视频截帧',
+  'mode.tag': '标签编辑',
 
   'convert.title': '选择输出格式',
   'tab.video': '视频',
@@ -78,6 +79,19 @@ const zh = {
   'frame.format': '图片格式',
   'frame.start': '截取画面',
 
+  'tag.title': '音频标签编辑',
+  'tag.dropText': '拖入一个音频文件,或点击选择',
+  'tag.fieldTitle': '标题',
+  'tag.fieldArtist': '歌手',
+  'tag.fieldAlbum': '专辑',
+  'tag.fieldYear': '年份',
+  'tag.fieldComment': '注释',
+  'tag.cover': '封面',
+  'tag.pickCover': '选择封面',
+  'tag.removeCover': '移除封面',
+  'tag.noFile': '请先选择音频文件',
+  'tag.save': '保存标签',
+
   'queue.title': '任务队列',
   'queue.clearFinished': '清除已完成',
   'queue.empty': '暂无任务,拖入文件开始转换',
@@ -88,6 +102,7 @@ const zh = {
   'queue.action': '操作',
   'queue.cancel': '取消',
   'queue.open': '打开',
+  'queue.retry': '重试',
 
   'st.queued': '排队中',
   'st.running': '转换中',
@@ -102,6 +117,8 @@ const zh = {
   'msg.hwDefault': '已设为默认:',
   'msg.langSaved': '语言已切换为中文',
   'msg.langSavedEn': 'Language switched to English',
+  'msg.tagSaved': '标签已保存',
+  'msg.tagFailed': '标签保存失败',
 
   'about.content': '多媒体格式转换工具,替代格式工厂。\n基于 FFmpeg 构建,本项目由 DeepSeek 构建。',
   'about.ok': '知道了',
@@ -133,6 +150,7 @@ const en: typeof zh = {
   'mode.convert': 'Convert',
   'mode.merge': 'Merge',
   'mode.frame': 'Extract Frame',
+  'mode.tag': 'Tag Editor',
 
   'convert.title': 'Choose Output Format',
   'tab.video': 'Video',
@@ -182,6 +200,19 @@ const en: typeof zh = {
   'frame.format': 'Image Format',
   'frame.start': 'Extract',
 
+  'tag.title': 'Audio Tag Editor',
+  'tag.dropText': 'Drop an audio file or click to browse',
+  'tag.fieldTitle': 'Title',
+  'tag.fieldArtist': 'Artist',
+  'tag.fieldAlbum': 'Album',
+  'tag.fieldYear': 'Year',
+  'tag.fieldComment': 'Comment',
+  'tag.cover': 'Cover Art',
+  'tag.pickCover': 'Choose Cover',
+  'tag.removeCover': 'Remove Cover',
+  'tag.noFile': 'Please select an audio file first',
+  'tag.save': 'Save Tags',
+
   'queue.title': 'Task Queue',
   'queue.clearFinished': 'Clear Finished',
   'queue.empty': 'No tasks, drop files to start',
@@ -192,6 +223,7 @@ const en: typeof zh = {
   'queue.action': 'Action',
   'queue.cancel': 'Cancel',
   'queue.open': 'Open',
+  'queue.retry': 'Retry',
 
   'st.queued': 'Queued',
   'st.running': 'Converting',
@@ -206,6 +238,8 @@ const en: typeof zh = {
   'msg.hwDefault': 'Set as default: ',
   'msg.langSaved': '语言已切换为中文',
   'msg.langSavedEn': 'Language switched to English',
+  'msg.tagSaved': 'Tags saved',
+  'msg.tagFailed': 'Failed to save tags',
 
   'about.content': 'A multimedia format converter that replaces Format Factory.\nBuilt on FFmpeg, this project is created by DeepSeek.',
   'about.ok': 'OK',

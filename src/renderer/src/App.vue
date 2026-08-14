@@ -81,6 +81,7 @@
           <el-radio-button value="convert">{{ t('mode.convert') }}</el-radio-button>
           <el-radio-button value="merge">{{ t('mode.merge') }}</el-radio-button>
           <el-radio-button value="frame">{{ t('mode.frame') }}</el-radio-button>
+          <el-radio-button value="tag">{{ t('mode.tag') }}</el-radio-button>
         </el-radio-group>
       </section>
 
@@ -153,17 +154,17 @@
           <div class="drop-hint">{{ t('files.dropHint') }}</div>
         </div>
 
-        <div v-if="files.length" class="file-chips">
-          <el-tag
-            v-for="(f, i) in files"
-            :key="f"
-            closable
-            type="info"
-            effect="plain"
-            @close="removeFile(i)"
-          >
-            {{ basename(f) }}
-          </el-tag>
+        <div v-if="files.length" class="file-list">
+          <div v-for="(f, i) in files" :key="f" class="file-row">
+            <el-icon class="file-row-icon"><Document /></el-icon>
+            <div class="file-row-main">
+              <div class="file-row-name">{{ basename(f) }}</div>
+              <div class="file-row-info">{{ formatMediaInfo(fileInfos[f]) }}</div>
+            </div>
+            <el-button link type="danger" class="file-row-remove" @click="removeFile(i)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </div>
         </div>
       </section>
 
@@ -294,7 +295,7 @@
       </section>
       </template>
 
-      <template v-else>
+      <template v-else-if="mode === 'frame'">
       <section class="card">
         <div class="section-title">{{ t('frame.title') }}</div>
         <div
@@ -332,6 +333,60 @@
         <div class="actions">
           <el-button type="primary" size="large" :disabled="!frameFile" @click="doFrame">
             <el-icon style="margin-right: 4px"><Picture /></el-icon>{{ t('frame.start') }}
+          </el-button>
+        </div>
+      </section>
+      </template>
+
+      <template v-else>
+      <section class="card">
+        <div class="section-title">{{ t('tag.title') }}</div>
+        <div
+          class="drop-zone"
+          :class="{ dragging: tagDragging }"
+          @click="pickTagFile"
+          @dragover.prevent="tagDragging = true"
+          @dragleave.prevent="tagDragging = false"
+          @drop.prevent="onTagDrop"
+        >
+          <el-icon :size="34" class="drop-icon"><Headset /></el-icon>
+          <div class="drop-text">{{ t('tag.dropText') }}</div>
+        </div>
+
+        <div v-if="tagFile" class="file-chips" style="margin-top: 12px">
+          <el-tag closable type="info" effect="plain" @close="clearTagFile">
+            {{ basename(tagFile) }}
+          </el-tag>
+        </div>
+
+        <el-form v-if="tagFile" label-width="70px" class="opt-form" style="margin-top: 16px; max-width: 480px">
+          <el-form-item :label="t('tag.fieldTitle')">
+            <el-input v-model="tagFields.title" placeholder="Title" />
+          </el-form-item>
+          <el-form-item :label="t('tag.fieldArtist')">
+            <el-input v-model="tagFields.artist" placeholder="Artist" />
+          </el-form-item>
+          <el-form-item :label="t('tag.fieldAlbum')">
+            <el-input v-model="tagFields.album" placeholder="Album" />
+          </el-form-item>
+          <el-form-item :label="t('tag.fieldYear')">
+            <el-input v-model="tagFields.date" placeholder="2026" style="width: 160px" />
+          </el-form-item>
+          <el-form-item :label="t('tag.fieldComment')">
+            <el-input v-model="tagFields.comment" type="textarea" :rows="2" />
+          </el-form-item>
+          <el-form-item :label="t('tag.cover')">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <el-button @click="pickCover">{{ t('tag.pickCover') }}</el-button>
+              <el-button v-if="tagCover" @click="clearCover">{{ t('tag.removeCover') }}</el-button>
+              <span v-if="tagCover" class="hint" style="margin-left: 0">{{ basename(tagCover) }}</span>
+            </div>
+          </el-form-item>
+        </el-form>
+
+        <div class="actions">
+          <el-button type="primary" size="large" :disabled="!tagFile" @click="saveTags">
+            <el-icon style="margin-right: 4px"><Check /></el-icon>{{ t('tag.save') }}
           </el-button>
         </div>
       </section>
@@ -392,6 +447,15 @@
               >
                 {{ t('queue.open') }}
               </el-button>
+              <el-button
+                v-else-if="row.status === 'error' || row.status === 'cancelled'"
+                size="small"
+                type="primary"
+                text
+                @click="retry(row.id)"
+              >
+                {{ t('queue.retry') }}
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -422,9 +486,11 @@ import {
   FolderOpened,
   QuestionFilled,
   SwitchButton,
-  Link
+  Link,
+  Document,
+  Check
 } from '@element-plus/icons-vue'
-import type { ConvertOptions, ConvertTask, Preset } from '@shared/types'
+import type { AudioTags, ConvertOptions, ConvertTask, MediaInfo, Preset } from '@shared/types'
 import { staticPresets } from './presets'
 import { t, locale, setLocale, tileSubEn, type Locale } from './i18n'
 
@@ -485,6 +551,7 @@ const dragging = ref(false)
 const advancedOpen = ref<string[]>([])
 
 const files = ref<string[]>([])
+const fileInfos = reactive<Record<string, MediaInfo>>({})
 const outputDir = ref<string>('')
 const outputDirText = ref('')
 const tasks = ref<ConvertTask[]>([])
@@ -498,7 +565,7 @@ const startText = ref('')
 const endText = ref('')
 const targetSizeText = ref('')
 
-const mode = ref<'convert' | 'merge' | 'frame'>('convert')
+const mode = ref<'convert' | 'merge' | 'frame' | 'tag'>('convert')
 
 const mergeFiles = ref<string[]>([])
 const mergeFormat = ref('mp4')
@@ -508,6 +575,11 @@ const frameFile = ref('')
 const frameFormat = ref('jpg')
 const frameTimeText = ref('')
 const frameDragging = ref(false)
+
+const tagFile = ref('')
+const tagDragging = ref(false)
+const tagCover = ref('')
+const tagFields = reactive<AudioTags>({})
 
 const hasFiles = computed(() => files.value.length > 0)
 
@@ -639,6 +711,27 @@ function formatSize(bytes?: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
 }
 
+function formatDuration(seconds?: number): string {
+  if (!seconds) return ''
+  const s = Math.round(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const mm = String(m).padStart(2, '0')
+  const ss = String(sec).padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`
+}
+
+function formatMediaInfo(info: MediaInfo | undefined): string {
+  if (!info) return ''
+  const parts: string[] = []
+  if (info.duration) parts.push(formatDuration(info.duration))
+  if (info.width && info.height) parts.push(`${info.width}x${info.height}`)
+  if (info.videoCodec) parts.push(info.videoCodec)
+  else if (info.audioCodec) parts.push(info.audioCodec)
+  return parts.join(' · ')
+}
+
 async function pickFiles(): Promise<void> {
   const picked = await window.api.pickFiles([
     {
@@ -660,8 +753,22 @@ function onDrop(e: DragEvent): void {
 
 function addFiles(paths: string[]): void {
   const existing = new Set(files.value)
-  for (const p of paths) if (!existing.has(p)) existing.add(p)
+  for (const p of paths) {
+    if (!existing.has(p)) {
+      existing.add(p)
+      void probeInfo(p)
+    }
+  }
   files.value = [...existing]
+}
+
+async function probeInfo(path: string): Promise<void> {
+  try {
+    const info = await window.api.probeMediaInfo(path)
+    fileInfos[path] = info
+  } catch {
+    /* ignore */
+  }
 }
 
 function removeFile(i: number): void {
@@ -699,6 +806,14 @@ async function addTasks(): Promise<void> {
 
 async function cancel(id: string): Promise<void> {
   await window.api.cancelTask(id)
+}
+
+async function retry(id: string): Promise<void> {
+  const ok = await window.api.retryTask(id)
+  if (ok) {
+    ElMessage.success(t('msg.taskAdded'))
+    tasks.value = await window.api.listTasks()
+  }
 }
 
 async function clearFinished(): Promise<void> {
@@ -793,6 +908,59 @@ function parseFrameTime(text: string): number | undefined {
   }
   const n = Number(text)
   return Number.isNaN(n) ? 0 : n
+}
+
+const AUDIO_PICK_FILTER = [
+  { name: '音频文件', extensions: ['mp3', 'flac', 'm4a', 'ogg', 'opus', 'wav', 'aac', 'wma'] }
+]
+const IMAGE_PICK_FILTER = [
+  { name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'] }
+]
+
+async function pickTagFile(): Promise<void> {
+  const picked = await window.api.pickFiles(AUDIO_PICK_FILTER)
+  if (!picked.length) return
+  tagFile.value = picked[0]
+  tagCover.value = ''
+  Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '' })
+  const tags = await window.api.readAudioTags(tagFile.value)
+  Object.assign(tagFields, tags)
+}
+
+function onTagDrop(e: DragEvent): void {
+  tagDragging.value = false
+  const paths = Array.from(e.dataTransfer?.files ?? [])
+    .map((f) => window.api.getPathForFile(f))
+    .filter((p) => p && p.length > 0)
+  if (paths.length) {
+    tagFile.value = paths[0]
+    Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '' })
+    void window.api.readAudioTags(paths[0]).then((tags) => Object.assign(tagFields, tags))
+  }
+}
+
+function clearTagFile(): void {
+  tagFile.value = ''
+  tagCover.value = ''
+}
+
+async function pickCover(): Promise<void> {
+  const picked = await window.api.pickFiles(IMAGE_PICK_FILTER)
+  if (picked.length) tagCover.value = picked[0]
+}
+
+function clearCover(): void {
+  tagCover.value = ''
+}
+
+async function saveTags(): Promise<void> {
+  if (!tagFile.value) {
+    ElMessage.warning(t('tag.noFile'))
+    return
+  }
+  const ok = await window.api.writeAudioTags(tagFile.value, { ...tagFields }, tagCover.value || undefined)
+  if (ok) ElMessage.success(t('msg.tagSaved'))
+  else ElMessage.error(t('msg.tagFailed'))
 }
 
 function statusText(s: ConvertTask['status']): string {
@@ -1055,6 +1223,44 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.file-row-icon {
+  color: var(--el-color-primary);
+  flex-shrink: 0;
+}
+.file-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.file-row-name {
+  font-size: 13px;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-row-info {
+  font-size: 12px;
+  color: #909399;
+}
+.file-row-remove {
+  flex-shrink: 0;
 }
 
 .opt-form :deep(.el-input__inner[readonly]) {
