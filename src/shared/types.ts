@@ -73,6 +73,7 @@ export interface AudioTags {
   album?: string
   date?: string
   comment?: string
+  lyrics?: string
 }
 
 export interface Preset {

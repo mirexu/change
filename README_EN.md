@@ -40,15 +40,29 @@ Supports Windows, macOS and Linux.
 
 ## Features
 
-- Audio / video / image format conversion
-- Batch task queue + real-time progress
-- Video codec selection (H.264 / H.265 / AV1 / VP9, etc.)
-- Audio codec selection (AAC / MP3 / Opus / FLAC, etc.)
-- Custom bitrate, frame rate and resolution
-- Clip / trim segments
-- Extract audio tracks
-- Smart bitrate: when no bitrate is specified, automatically preserves the source audio bitrate and caps it at the format limit
-- Lossless FLAC encoding uses 16-bit by default
+**Conversion**
+- Audio / video / image conversion (50+ formats: mp4 / mkv / mov / avi / webm / flv / mp3 / flac / wav / avif / apng / ico, etc.)
+- Batch queue + real-time progress + **persistent task history** (survives restart, retry failed tasks)
+- Smart bitrate: preserves source audio bitrate and caps it at the format limit when unspecified
+- Lossless FLAC uses 16-bit by default, auto-handles ICO / AVIF / APNG special formats
+
+**Hardware Acceleration (experimental)**
+- NVIDIA NVENC / AMD AMF / Intel QSV encoding for much faster conversion with lower CPU usage
+- ⚠️ Experimental: some GPUs / drivers may have compatibility issues or quality differences
+
+**Video**
+- Merge multiple videos into one
+- Compress to a target size (MB)
+- Extract a frame as an image
+- Trim segments, custom frame rate / resolution / bitrate
+
+**Audio**
+- Extract audio tracks, convert between audio formats
+- Tag editor: title / artist / album / year / comment / lyrics / cover art (stream copy, no re-encode)
+
+**More**
+- Chinese / English (switch in Help menu, remembered)
+- Drag & drop, media info preview, completion system notification
 
 ## Development
 
@@ -84,16 +98,19 @@ Push a `v*` tag or manually trigger `.github/workflows/build.yml`. GitHub Action
 
 ```
 src/
-├── main/          # Main process (window, IPC, FFmpeg engine, task queue)
+├── main/          # Main process (window, IPC, FFmpeg engine, task queue, tags)
 │   ├── index.ts
 │   ├── ffmpeg.ts
+│   ├── tags.ts
 │   └── document.ts
 ├── preload/       # Preload script (contextBridge)
 │   └── index.ts
 ├── renderer/      # Renderer process (Vue 3 UI)
 │   └── src/
 │       ├── App.vue
-│       └── main.ts
+│       ├── main.ts
+│       ├── i18n.ts
+│       └── presets.ts
 └── shared/        # Shared types between main and renderer
     └── types.ts
 ```

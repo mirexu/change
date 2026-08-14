@@ -375,6 +375,9 @@
           <el-form-item :label="t('tag.fieldComment')">
             <el-input v-model="tagFields.comment" type="textarea" :rows="2" />
           </el-form-item>
+          <el-form-item :label="t('tag.fieldLyrics')">
+            <el-input v-model="tagFields.lyrics" type="textarea" :rows="6" placeholder="粘贴歌词到这里(纯文本)" />
+          </el-form-item>
           <el-form-item :label="t('tag.cover')">
             <div style="display: flex; align-items: center; gap: 8px">
               <el-button @click="pickCover">{{ t('tag.pickCover') }}</el-button>
@@ -495,7 +498,7 @@ import { staticPresets } from './presets'
 import { t, locale, setLocale, tileSubEn, type Locale } from './i18n'
 
 const GITHUB_URL = 'https://github.com/mirexu/change'
-const APP_VERSION = '0.9.0-beta'
+const APP_VERSION = '1.0.0'
 
 const elLocale = computed(() => (locale.value === 'en' ? en : zhCn))
 
@@ -922,7 +925,7 @@ async function pickTagFile(): Promise<void> {
   if (!picked.length) return
   tagFile.value = picked[0]
   tagCover.value = ''
-  Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '' })
+  Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '', lyrics: '' })
   const tags = await window.api.readAudioTags(tagFile.value)
   Object.assign(tagFields, tags)
 }
@@ -934,7 +937,7 @@ function onTagDrop(e: DragEvent): void {
     .filter((p) => p && p.length > 0)
   if (paths.length) {
     tagFile.value = paths[0]
-    Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '' })
+    Object.assign(tagFields, { title: '', artist: '', album: '', date: '', comment: '', lyrics: '' })
     void window.api.readAudioTags(paths[0]).then((tags) => Object.assign(tagFields, tags))
   }
 }
@@ -1027,8 +1030,18 @@ function onHardwareMenu(cmd: string): void {
     options.videoCodec = ''
     ElMessage.success(t('msg.autoEncoder'))
   } else {
-    options.videoCodec = cmd
-    ElMessage.success(`${t('msg.hwDefault')}${encLabel(cmd)}`)
+    void ElMessageBox.confirm(t('hw.warningContent'), t('hw.warningTitle'), {
+      confirmButtonText: t('hw.warningConfirm'),
+      cancelButtonText: t('hw.warningCancel'),
+      type: 'warning'
+    })
+      .then(() => {
+        options.videoCodec = cmd
+        ElMessage.success(`${t('msg.hwDefault')}${encLabel(cmd)}`)
+      })
+      .catch(() => {
+        /* 用户取消 */
+      })
   }
 }
 

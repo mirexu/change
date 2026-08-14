@@ -25,7 +25,8 @@ export function readAudioTags(inputPath: string): Promise<AudioTags> {
         artist: meta['artist'],
         album: meta['album'],
         date: meta['date'],
-        comment: meta['comment']
+        comment: meta['comment'],
+        lyrics: meta['lyrics']
       })
     })
   })
@@ -61,6 +62,7 @@ export function writeAudioTags(inputPath: string, tags: AudioTags, coverPath?: s
     if (tags.album) args.push('-metadata', `album=${tags.album}`)
     if (tags.date) args.push('-metadata', `date=${tags.date}`)
     if (tags.comment) args.push('-metadata', `comment=${tags.comment}`)
+    if (tags.lyrics) args.push('-metadata', `lyrics=${tags.lyrics}`)
 
     args.push('-y', tmp)
 

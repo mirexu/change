@@ -86,6 +86,7 @@ const zh = {
   'tag.fieldAlbum': '专辑',
   'tag.fieldYear': '年份',
   'tag.fieldComment': '注释',
+  'tag.fieldLyrics': '歌词',
   'tag.cover': '封面',
   'tag.pickCover': '选择封面',
   'tag.removeCover': '移除封面',
@@ -119,6 +120,11 @@ const zh = {
   'msg.langSavedEn': 'Language switched to English',
   'msg.tagSaved': '标签已保存',
   'msg.tagFailed': '标签保存失败',
+
+  'hw.warningTitle': '实验性功能',
+  'hw.warningContent': '硬件加速编码属于实验性功能,不同显卡/驱动可能出现兼容性问题或画质差异。是否继续启用?',
+  'hw.warningConfirm': '仍要启用',
+  'hw.warningCancel': '取消',
 
   'about.content': '多媒体格式转换工具,替代格式工厂。\n基于 FFmpeg 构建,本项目由 DeepSeek 构建。',
   'about.ok': '知道了',
@@ -207,6 +213,7 @@ const en: typeof zh = {
   'tag.fieldAlbum': 'Album',
   'tag.fieldYear': 'Year',
   'tag.fieldComment': 'Comment',
+  'tag.fieldLyrics': 'Lyrics',
   'tag.cover': 'Cover Art',
   'tag.pickCover': 'Choose Cover',
   'tag.removeCover': 'Remove Cover',
@@ -240,6 +247,11 @@ const en: typeof zh = {
   'msg.langSavedEn': 'Language switched to English',
   'msg.tagSaved': 'Tags saved',
   'msg.tagFailed': 'Failed to save tags',
+
+  'hw.warningTitle': 'Experimental Feature',
+  'hw.warningContent': 'Hardware-accelerated encoding is experimental. Some GPUs/drivers may cause compatibility issues or quality differences. Continue?',
+  'hw.warningConfirm': 'Enable Anyway',
+  'hw.warningCancel': 'Cancel',
 
   'about.content': 'A multimedia format converter that replaces Format Factory.\nBuilt on FFmpeg, this project is created by DeepSeek.',
   'about.ok': 'OK',
