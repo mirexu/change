@@ -35,7 +35,7 @@ Supports Windows, macOS and Linux.
 | Desktop framework | Electron 31 |
 | Build | electron-vite + Vite 5 |
 | Frontend | Vue 3 + TypeScript + Element Plus |
-| Conversion engine | FFmpeg 6.x (`ffmpeg-static` + `fluent-ffmpeg`) |
+| Conversion engine | FFmpeg (release 9.0.1, local dev 6.1.1) |
 | Packaging | electron-builder |
 
 ## Features

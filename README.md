@@ -35,7 +35,7 @@
 | 桌面框架 | Electron 31 |
 | 构建 | electron-vite + Vite 5 |
 | 前端 | Vue 3 + TypeScript + Element Plus |
-| 转码引擎 | FFmpeg 6.x(`ffmpeg-static` + `fluent-ffmpeg`) |
+| 转码引擎 | FFmpeg(发布版 9.0.1,本地开发 6.1.1) |
 | 打包 | electron-builder |
 
 ## 功能

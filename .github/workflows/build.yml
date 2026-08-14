@@ -33,6 +33,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download FFmpeg 9.0.1 (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          curl.exe -sL --retry 5 --retry-all-errors -o ffmpeg.zip "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.1-essentials_build.zip"
+          tar -xf ffmpeg.zip
+          $exe = Get-ChildItem -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName node_modules/ffmpeg-static/ffmpeg.exe -Force
+          node_modules/ffmpeg-static/ffmpeg.exe -version
+
+      - name: Download FFmpeg 9.0.1 (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          curl -sL --retry 5 --retry-all-errors -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+          tar -xf ffmpeg.tar.xz
+          cp "$(find . -maxdepth 2 -name ffmpeg -type f | head -1)" node_modules/ffmpeg-static/ffmpeg
+          chmod +x node_modules/ffmpeg-static/ffmpeg
+          node_modules/ffmpeg-static/ffmpeg -version
+
+      - name: Download FFmpeg 9.0.1 (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          curl -sL --retry 5 --retry-all-errors -o ffmpeg.zip "https://evermeet.cx/ffmpeg/ffmpeg-9.0.1.zip"
+          unzip -o ffmpeg.zip
+          cp ffmpeg node_modules/ffmpeg-static/ffmpeg
+          chmod +x node_modules/ffmpeg-static/ffmpeg
+          node_modules/ffmpeg-static/ffmpeg -version
+
       - name: Build renderer & main
         run: npx electron-vite build
 
