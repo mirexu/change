@@ -56,13 +56,13 @@ jobs:
           Copy-Item $exe.FullName build/bin/ffmpeg.exe -Force
           build/bin/ffmpeg.exe -version
 
-      - name: Download FFmpeg 9.0.1 (Linux)
+      - name: Download FFmpeg (Linux)
         if: matrix.platform == 'linux'
         run: |
-          curl -sL --retry 5 --retry-all-errors -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+          curl -sL --retry 5 --retry-all-errors -o ffmpeg.tar.xz "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz"
           tar -xf ffmpeg.tar.xz
           mkdir -p build/bin
-          cp "$(find . -maxdepth 2 -name ffmpeg -type f | head -1)" build/bin/ffmpeg
+          cp "$(find . -maxdepth 3 -path '*/bin/ffmpeg' -type f | head -1)" build/bin/ffmpeg
           chmod +x build/bin/ffmpeg
           build/bin/ffmpeg -version
 
