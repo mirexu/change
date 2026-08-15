@@ -76,18 +76,49 @@ jobs:
           chmod +x build/bin/ffmpeg
           build/bin/ffmpeg -version
 
+      - name: Add NSIS to PATH (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+
       - name: Build
         run: wails build ${{ matrix.build-flags }}
+
+      - name: Copy FFmpeg into macOS app bundle
+        if: matrix.platform == 'macos'
+        run: |
+          cp build/bin/ffmpeg "build/bin/Change.app/Contents/MacOS/ffmpeg"
+
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/bin/change.exe dist/change.exe
+          Copy-Item build/bin/ffmpeg.exe dist/ffmpeg.exe
+          $installer = Get-ChildItem build/bin/*installer*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($installer) { Copy-Item $installer.FullName dist/change-windows-installer.exe }
+          Get-ChildItem dist
+
+      - name: Package (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist
+          tar czf dist/change-linux.tar.gz -C build/bin change ffmpeg
+          ls -la dist
+
+      - name: Package (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p dist
+          (cd build/bin && zip -q -r ../../dist/change-macos.zip Change.app)
+          ls -la dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: change-${{ matrix.platform }}
-          path: |
-            build/bin/change*
-            build/bin/ffmpeg*
-            build/bin/*.exe
-            build/bin/*.app
+          path: dist/**
           if-no-files-found: error
 
   release:
@@ -102,4 +133,4 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
-          draft: true
+          makeLatest: true
