@@ -80,12 +80,24 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
-          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
-            choco install nsis -y --no-progress
+          $ProgressPreference = 'SilentlyContinue'
+          $nsisDir = Get-ChildItem "C:\Program Files (x86)\NSIS\makensis.exe" -ErrorAction SilentlyContinue
+          if (-not $nsisDir) {
+            for ($i = 0; $i -lt 5; $i++) {
+              try {
+                Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12.zip" -OutFile nsis.zip -UseBasicParsing
+                break
+              } catch {
+                if ($i -eq 4) { throw }
+                Start-Sleep -Seconds 3
+              }
+            }
+            Expand-Archive nsis.zip -DestinationPath nsis
+            echo "$PWD\nsis\nsis-3.12" | Out-File -FilePath $env:GITHUB_PATH -Append
+          } else {
             echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
           }
-          makensis -VERSION
+          Get-ChildItem "$PWD\nsis\nsis-3.12\makensis.exe" -ErrorAction SilentlyContinue | Select-Object FullName
 
       - name: Build
         run: wails build ${{ matrix.build-flags }}
