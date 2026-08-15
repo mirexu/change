@@ -76,10 +76,16 @@ jobs:
           chmod +x build/bin/ffmpeg
           build/bin/ffmpeg -version
 
-      - name: Add NSIS to PATH (Windows)
+      - name: Setup NSIS (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
-        run: echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+        run: |
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            choco install nsis -y --no-progress
+            echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+          makensis -VERSION
 
       - name: Build
         run: wails build ${{ matrix.build-flags }}
@@ -94,8 +100,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item build/bin/change.exe dist/change.exe
-          Copy-Item build/bin/ffmpeg.exe dist/ffmpeg.exe
+          Compress-Archive -Path build/bin/change.exe, build/bin/ffmpeg.exe -DestinationPath dist/change-windows-portable.zip -Force
           $installer = Get-ChildItem build/bin/*installer*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($installer) { Copy-Item $installer.FullName dist/change-windows-installer.exe }
           Get-ChildItem dist
