@@ -120,24 +120,24 @@ jobs:
           cp build/bin/ffmpeg "$ROOT/opt/change/ffmpeg"
           ln -s /opt/change/change "$ROOT/usr/bin/change"
           cat > "$ROOT/DEBIAN/control" <<EOF
-Package: change
-Version: $VER
-Section: utils
-Priority: optional
-Architecture: amd64
-Maintainer: mirexu <milk_snowlk@noreply.gitcode.com>
-Description: Multimedia format converter (Format Factory alternative)
-EOF
+          Package: change
+          Version: $VER
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: mirexu <milk_snowlk@noreply.gitcode.com>
+          Description: Multimedia format converter (Format Factory alternative)
+          EOF
           cat > "$ROOT/usr/share/applications/change.desktop" <<EOF
-[Desktop Entry]
-Name=Change
-Comment=Multimedia format converter
-Exec=/opt/change/change
-Icon=change
-Terminal=false
-Type=Application
-Categories=AudioVideo;Utility;
-EOF
+          [Desktop Entry]
+          Name=Change
+          Comment=Multimedia format converter
+          Exec=/opt/change/change
+          Icon=change
+          Terminal=false
+          Type=Application
+          Categories=AudioVideo;Utility;
+          EOF
           cp build/appicon.png "$ROOT/usr/share/icons/hicolor/512x512/apps/change.png"
           dpkg-deb --build --root-owner-group "$ROOT" "dist/change_${VER}_amd64.deb"
           ls -la dist
