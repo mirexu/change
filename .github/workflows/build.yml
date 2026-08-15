@@ -109,14 +109,45 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           mkdir -p dist
+          # 便携版(可选)
           tar czf dist/change-linux.tar.gz -C build/bin change ffmpeg
+          # 构建 .deb 安装包
+          VER="${GITHUB_REF_NAME#v}"
+          ROOT="pkg/change_${VER}_amd64"
+          mkdir -p "$ROOT/DEBIAN" "$ROOT/opt/change" "$ROOT/usr/bin" \
+                   "$ROOT/usr/share/applications" "$ROOT/usr/share/icons/hicolor/512x512/apps"
+          cp build/bin/change "$ROOT/opt/change/change"
+          cp build/bin/ffmpeg "$ROOT/opt/change/ffmpeg"
+          ln -s /opt/change/change "$ROOT/usr/bin/change"
+          cat > "$ROOT/DEBIAN/control" <<EOF
+Package: change
+Version: $VER
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: mirexu <milk_snowlk@noreply.gitcode.com>
+Description: Multimedia format converter (Format Factory alternative)
+EOF
+          cat > "$ROOT/usr/share/applications/change.desktop" <<EOF
+[Desktop Entry]
+Name=Change
+Comment=Multimedia format converter
+Exec=/opt/change/change
+Icon=change
+Terminal=false
+Type=Application
+Categories=AudioVideo;Utility;
+EOF
+          cp build/appicon.png "$ROOT/usr/share/icons/hicolor/512x512/apps/change.png"
+          dpkg-deb --build --root-owner-group "$ROOT" "dist/change_${VER}_amd64.deb"
           ls -la dist
 
       - name: Package (macOS)
         if: matrix.platform == 'macos'
         run: |
           mkdir -p dist
-          (cd build/bin && zip -q -r ../../dist/change-macos.zip Change.app)
+          cp build/bin/ffmpeg "build/bin/Change.app/Contents/MacOS/ffmpeg"
+          hdiutil create -volname "Change" -srcfolder "build/bin/Change.app" -ov -format UDZO dist/change-macos.dmg
           ls -la dist
 
       - name: Upload artifacts
