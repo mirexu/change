@@ -17,11 +17,13 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            wails-flags: '-nsis'
+            build-flags: '-nsis'
           - os: ubuntu-latest
             platform: linux
+            build-flags: '-tags webkit2_41'
           - os: macos-latest
             platform: macos
+            build-flags: ''
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -75,7 +77,7 @@ jobs:
           build/bin/ffmpeg -version
 
       - name: Build
-        run: wails build ${{ matrix.wails-flags }}
+        run: wails build ${{ matrix.build-flags }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
