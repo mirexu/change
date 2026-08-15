@@ -1,0 +1,103 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            wails-flags: '-nsis'
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Download FFmpeg 9.0.1 (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          curl.exe -sL --retry 5 --retry-all-errors -o ffmpeg.zip "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.1-essentials_build.zip"
+          tar -xf ffmpeg.zip
+          $exe = Get-ChildItem -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          New-Item -ItemType Directory -Force build/bin | Out-Null
+          Copy-Item $exe.FullName build/bin/ffmpeg.exe -Force
+          build/bin/ffmpeg.exe -version
+
+      - name: Download FFmpeg 9.0.1 (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          curl -sL --retry 5 --retry-all-errors -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+          tar -xf ffmpeg.tar.xz
+          mkdir -p build/bin
+          cp "$(find . -maxdepth 2 -name ffmpeg -type f | head -1)" build/bin/ffmpeg
+          chmod +x build/bin/ffmpeg
+          build/bin/ffmpeg -version
+
+      - name: Download FFmpeg 9.0.1 (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          curl -sL --retry 5 --retry-all-errors -o ffmpeg.zip "https://evermeet.cx/ffmpeg/ffmpeg-9.0.1.zip"
+          unzip -o ffmpeg.zip
+          mkdir -p build/bin
+          cp ffmpeg build/bin/ffmpeg
+          chmod +x build/bin/ffmpeg
+          build/bin/ffmpeg -version
+
+      - name: Build
+        run: wails build ${{ matrix.wails-flags }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: change-${{ matrix.platform }}
+          path: |
+            build/bin/change*
+            build/bin/ffmpeg*
+            build/bin/*.exe
+            build/bin/*.app
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          draft: true
