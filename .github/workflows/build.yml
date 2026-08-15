@@ -80,24 +80,12 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          $ProgressPreference = 'SilentlyContinue'
-          $nsisDir = Get-ChildItem "C:\Program Files (x86)\NSIS\makensis.exe" -ErrorAction SilentlyContinue
-          if (-not $nsisDir) {
-            for ($i = 0; $i -lt 5; $i++) {
-              try {
-                Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12.zip" -OutFile nsis.zip -UseBasicParsing
-                break
-              } catch {
-                if ($i -eq 4) { throw }
-                Start-Sleep -Seconds 3
-              }
-            }
-            Expand-Archive nsis.zip -DestinationPath nsis
-            echo "$PWD\nsis\nsis-3.12" | Out-File -FilePath $env:GITHUB_PATH -Append
-          } else {
-            echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+          if (-not (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe")) {
+            curl.exe -sL --retry 5 --retry-all-errors -o nsis-setup.exe "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe"
+            Start-Process -FilePath .\nsis-setup.exe -ArgumentList '/S' -Wait
           }
-          Get-ChildItem "$PWD\nsis\nsis-3.12\makensis.exe" -ErrorAction SilentlyContinue | Select-Object FullName
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+          Test-Path "C:\Program Files (x86)\NSIS\makensis.exe"
 
       - name: Build
         run: wails build ${{ matrix.build-flags }}
